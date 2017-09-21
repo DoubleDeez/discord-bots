@@ -14,7 +14,7 @@ import (
 
 // Constants
 const (
-	Version = "v0.0.0"
+	Version = "v0.0.1"
 	CmdChar = "+"
 )
 
@@ -45,8 +45,9 @@ func init() {
 	flag.Parse()
 
 	CmdFuncs = CmdFuncsType{
-		"help": CmdFuncHelpType{CmdHelp, "Prints this list"},
-		"here": CmdFuncHelpType{CmdHere, "Sets the channel for the bot to perform trivia"},
+		"help":    CmdFuncHelpType{CmdHelp, "Prints this list"},
+		"here":    CmdFuncHelpType{CmdHere, "Sets the channel for the bot to perform trivia"},
+		"version": CmdFuncHelpType{CmdVersion, "Outputs the current bot version"},
 	}
 }
 
@@ -126,4 +127,9 @@ func CmdHelp(session *discordgo.Session, message *discordgo.MessageCreate, cmder
 func CmdHere(session *discordgo.Session, message *discordgo.MessageCreate, cmder string) {
 	Channel = message.ChannelID
 	session.ChannelMessageSend(Channel, "I'm here!")
+}
+
+// CmdVersion Outputs the current bot version
+func CmdVersion(session *discordgo.Session, message *discordgo.MessageCreate, cmder string) {
+	session.ChannelMessageSend(message.ChannelID, Version)
 }
