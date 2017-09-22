@@ -14,7 +14,7 @@ import (
 // Global constants
 const (
 	QuestionsFilePath = "trivia.txt"
-	TimeToAnswer      = 60
+	TimeToAnswer      = 180 // TODO - command based
 )
 
 // Global vars
@@ -113,7 +113,7 @@ func CheckAnswer(session *discordgo.Session, message *discordgo.MessageCreate) {
 
 func correctAnswer(session *discordgo.Session, message *discordgo.MessageCreate) {
 	CurrentQuestionIndex = -1
-
+	QuestionTimer.Stop()
 	var user = message.Author
 	var answerMessage = fmt.Sprintf("%s had the correct answer with `%s`. There were %d wrong answer(s)", user.Mention(), message.Content, NumWrongAnswers)
 	session.ChannelMessageSend(message.ChannelID, answerMessage)
@@ -146,7 +146,7 @@ func onTimeRanOut(session *discordgo.Session, channelID string) {
 	var currQuestion = Questions[CurrentQuestionIndex]
 	CurrentQuestionIndex = -1
 
-	var answerMessage = fmt.Sprintf("Time ran out!\nThe correct answer was `%s`", currQuestion.answers[0])
+	var answerMessage = fmt.Sprintf("Time ran out!\nThe correct answer was `%s` There were %d wrong answer(s)", currQuestion.answers[0], NumWrongAnswers)
 	session.ChannelMessageSend(channelID, answerMessage)
 
 	if NumWrongAnswers > 0 {
