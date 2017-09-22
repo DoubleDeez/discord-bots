@@ -13,7 +13,7 @@ import (
 
 // Constants
 const (
-	Version = "v0.2.0"
+	Version = "v0.2.1"
 )
 
 // Global vars
@@ -23,7 +23,7 @@ var (
 )
 
 func init() {
-	fmt.Println("Startin Trivia Bot...")
+	fmt.Println("Starting Trivia Bot...")
 	flag.StringVar(&Token, "t", "", "Discord Authentication Token")
 	flag.Parse()
 

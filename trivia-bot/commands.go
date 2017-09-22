@@ -120,5 +120,5 @@ func cmdStats(session *discordgo.Session, message *discordgo.MessageCreate, cmde
 }
 
 func cmdQuestion(session *discordgo.Session, message *discordgo.MessageCreate, cmder string) {
-	NewQuestion(session, message)
+	NewQuestion(session, message.ChannelID)
 }
