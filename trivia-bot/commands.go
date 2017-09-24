@@ -32,13 +32,13 @@ var cmdFuncs cmdFuncsType
 
 func init() {
 	cmdFuncs = cmdFuncsType{
-		"help":     cmdFuncHelpType{cmdHelp, "Prints this list", false},
-		"here":     cmdFuncHelpType{cmdHere, "Sets the channel for the bot to perform trivia (per server)", false},
-		"version":  cmdFuncHelpType{cmdVersion, "Outputs the current bot version", true},
-		"ranking":  cmdFuncHelpType{cmdRanking, "Displays the current score rankings", true},
-		"stats":    cmdFuncHelpType{cmdStats, "Displays stats about this bot", true},
-		"question": cmdFuncHelpType{cmdQuestion, "Triggers the bot to ask a question", true},
-		"stop":     cmdFuncHelpType{cmdStop, "The current channel will no longer get trivia", true},
+		"help":    cmdFuncHelpType{cmdHelp, "Prints this list", false},
+		"here":    cmdFuncHelpType{cmdHere, "Sets the channel for the bot to perform trivia (per server)", false},
+		"version": cmdFuncHelpType{cmdVersion, "Outputs the current bot version", true},
+		"ranking": cmdFuncHelpType{cmdRanking, "Displays the current score rankings", true},
+		"stats":   cmdFuncHelpType{cmdStats, "Displays stats about this bot", true},
+		"start":   cmdFuncHelpType{cmdQuestion, "Triggers the bot to ask a question", true},
+		"stop":    cmdFuncHelpType{cmdStop, "The current channel will no longer get trivia", true},
 	}
 }
 
