@@ -153,5 +153,8 @@ func cmdStop(message *discordgo.MessageCreate) {
 		return
 	}
 
-	SetChannelInactive(message.ChannelID)
+	if SetChannelInactive(message.ChannelID) {
+		var StoppedTriviaMessage = fmt.Sprintf("%s stopped the trivia in this channel", message.Author.Mention())
+		DiscordSession.ChannelMessageSend(message.ChannelID, StoppedTriviaMessage)
+	}
 }

@@ -196,13 +196,14 @@ func SetChannelActive(channelID string) {
 }
 
 // SetChannelInactive Will stop the channel from receiving trivia
-func SetChannelInactive(channelID string) {
+func SetChannelInactive(channelID string) bool {
 	var ChannelIndex = findActiveChannelIndex(channelID)
 	if ChannelIndex == -1 {
-		return
+		return false
 	}
 
 	ActiveQuestionChannels = append(ActiveQuestionChannels[:ChannelIndex], ActiveQuestionChannels[ChannelIndex+1:]...)
+	return true
 }
 
 func findActiveChannelIndex(channelID string) int {
