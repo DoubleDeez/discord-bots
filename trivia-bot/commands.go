@@ -9,7 +9,8 @@ import (
 
 // Constants
 const (
-	CmdChar = "+"
+	CmdChar            = "+"
+	LeaderboardSpacing = 8
 )
 
 // cmdFuncType Command function type
@@ -36,6 +37,7 @@ func init() {
 		"ranking":  cmdFuncHelpType{cmdRanking, "Displays the current score rankings", true},
 		"stats":    cmdFuncHelpType{cmdStats, "Displays stats about this bot", true},
 		"question": cmdFuncHelpType{cmdQuestion, "Triggers the bot to ask a question", true},
+		"stop":     cmdFuncHelpType{cmdStop, "Gives up on the current question and stops trivia from proceeding", true},
 	}
 }
 
@@ -102,9 +104,22 @@ func cmdRanking(message *discordgo.MessageCreate) {
 	}
 	sort.Sort(sort.Reverse(scoreList))
 
+	var longestNameLength = 0
+	for _, score := range scoreList {
+		var nameLength = len(score.name)
+		if nameLength > longestNameLength {
+			longestNameLength = nameLength
+		}
+	}
+
 	var rankings = "The Current Rankings:\n```\n"
-	for idx := range scoreList {
-		rankings += fmt.Sprintf("%s \t\t\t %d\n", scoreList[idx].name, scoreList[idx].score)
+	for _, score := range scoreList {
+		var numSpaces = longestNameLength + LeaderboardSpacing - len(score.name)
+		rankings += score.name
+		for i := 0; i < numSpaces; i++ {
+			rankings += " "
+		}
+		rankings += fmt.Sprintf("%d\n", score.score)
 	}
 	rankings += "```"
 	DiscordSession.ChannelMessageSend(message.ChannelID, rankings)
@@ -120,4 +135,11 @@ func cmdStats(message *discordgo.MessageCreate) {
 
 func cmdQuestion(message *discordgo.MessageCreate) {
 	NewQuestion(message.ChannelID)
+}
+
+func cmdStop(message *discordgo.MessageCreate) {
+	if IsQuestionActive() == false {
+		return
+	}
+
 }

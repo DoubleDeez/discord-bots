@@ -14,7 +14,7 @@ import (
 // Global constants
 const (
 	QuestionsFilePath = "trivia.txt"
-	TimeToAnswer      = 180 // TODO - command based
+	TimeToAnswer      = 120 // TODO - command based
 )
 
 // Global vars
@@ -26,6 +26,7 @@ var (
 	Questions              []Question
 	QuestionTimer          *time.Timer
 	NumWrongAnswers        int
+	ActiveQuestionChannels []int
 )
 
 // Question holds the question and answers
