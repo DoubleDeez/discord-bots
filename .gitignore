@@ -17,6 +17,9 @@
 runbot.sh
 runbot.bat
 
-# Debugging
+# Editors/Debugging
 debug
 .vscode/
+
+# Saved files
+*.sav
