@@ -11,6 +11,7 @@ import (
 const (
 	CmdChar            = "+"
 	LeaderboardSpacing = 8
+	NumRankingsToShow  = 10
 )
 
 // cmdFuncType Command function type
@@ -37,7 +38,7 @@ func init() {
 		"ranking":  cmdFuncHelpType{cmdRanking, "Displays the current score rankings", true},
 		"stats":    cmdFuncHelpType{cmdStats, "Displays stats about this bot", true},
 		"question": cmdFuncHelpType{cmdQuestion, "Triggers the bot to ask a question", true},
-		"stop":     cmdFuncHelpType{cmdStop, "Gives up on the current question and stops trivia from proceeding", true},
+		"stop":     cmdFuncHelpType{cmdStop, "The current channel will no longer get trivia", true},
 	}
 }
 
@@ -112,14 +113,19 @@ func cmdRanking(message *discordgo.MessageCreate) {
 		}
 	}
 
-	var rankings = "The Current Rankings:\n```\n"
+	var rankings = fmt.Sprintf("Top %d Players:\n```\n", NumRankingsToShow)
+	var RankingCounter = NumRankingsToShow
 	for _, score := range scoreList {
+		if RankingCounter <= 0 {
+			break
+		}
 		var numSpaces = longestNameLength + LeaderboardSpacing - len(score.name)
 		rankings += score.name
 		for i := 0; i < numSpaces; i++ {
 			rankings += " "
 		}
 		rankings += fmt.Sprintf("%d\n", score.score)
+		RankingCounter--
 	}
 	rankings += "```"
 	DiscordSession.ChannelMessageSend(message.ChannelID, rankings)
@@ -134,7 +140,12 @@ func cmdStats(message *discordgo.MessageCreate) {
 }
 
 func cmdQuestion(message *discordgo.MessageCreate) {
-	NewQuestion(message.ChannelID)
+	SetChannelActive(message.ChannelID)
+	if IsQuestionActive() {
+		MessageQuestion(message.ChannelID)
+	} else {
+		NewQuestion()
+	}
 }
 
 func cmdStop(message *discordgo.MessageCreate) {
@@ -142,4 +153,5 @@ func cmdStop(message *discordgo.MessageCreate) {
 		return
 	}
 
+	SetChannelInactive(message.ChannelID)
 }

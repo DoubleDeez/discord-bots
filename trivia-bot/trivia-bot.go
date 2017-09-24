@@ -13,7 +13,7 @@ import (
 
 // Constants
 const (
-	Version = "v0.2.4"
+	Version = "v0.2.5"
 )
 
 // Global vars

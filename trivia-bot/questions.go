@@ -25,8 +25,8 @@ var (
 	CurrentQuestionIndex   int
 	Questions              []Question
 	QuestionTimer          *time.Timer
-	NumWrongAnswers        int
-	ActiveQuestionChannels []int
+	NumAnswers             map[string]int
+	ActiveQuestionChannels []string
 )
 
 // Question holds the question and answers
@@ -79,26 +79,40 @@ func MessageQuestion(channelID string) {
 	DiscordSession.ChannelMessageSend(channelID, QuestionMessage)
 }
 
-// NewQuestion Starts a new question
-func NewQuestion(channelID string) {
-	if IsQuestionActive() == false {
-		NumWrongAnswers = 0
-		setRandomQuestion()
-		var NewQuestionMessage = fmt.Sprintf("A new question, you have %d seconds to answer it!", TimeToAnswer)
-		DiscordSession.ChannelMessageSend(channelID, NewQuestionMessage)
-		QuestionTimer = time.NewTimer(time.Second * TimeToAnswer)
-		go func(channelID string) {
-			<-QuestionTimer.C
-			onTimeRanOut(channelID)
-		}(channelID)
-	}
+func messageQuestionToAll() {
+	var currQuestion = Questions[CurrentQuestionIndex]
+	var QuestionMessage = fmt.Sprintf("The question is: \n%s", currQuestion.question)
+	sendMessageToActiveChannels(QuestionMessage)
+}
 
-	MessageQuestion(channelID)
+// NewQuestion Starts a new question
+func NewQuestion() {
+	NumAnswers = make(map[string]int)
+
+	setRandomQuestion()
+	var NewQuestionMessage = fmt.Sprintf("A new question, you have %d seconds to answer it!", TimeToAnswer)
+	sendMessageToActiveChannels(NewQuestionMessage)
+	QuestionTimer = time.NewTimer(time.Second * TimeToAnswer)
+	go func() {
+		<-QuestionTimer.C
+		onTimeRanOut()
+	}()
+
+	messageQuestionToAll()
 }
 
 // CheckAnswer Checks if the input is the correct answer
 func CheckAnswer(message *discordgo.MessageCreate) {
 	if IsQuestionActive() {
+		var answers = 0
+		if val, ok := NumAnswers[message.ChannelID]; ok {
+			answers = val + 1
+		} else {
+			answers = 1
+		}
+
+		NumAnswers[message.ChannelID] = answers
+
 		var currQuestion = Questions[CurrentQuestionIndex]
 		var Input = cleanseAnswer(message.Content)
 		for _, ans := range currQuestion.answers {
@@ -108,7 +122,6 @@ func CheckAnswer(message *discordgo.MessageCreate) {
 				return
 			}
 		}
-		NumWrongAnswers++
 	}
 }
 
@@ -116,13 +129,14 @@ func correctAnswer(message *discordgo.MessageCreate) {
 	CurrentQuestionIndex = -1
 	QuestionTimer.Stop()
 	var user = message.Author
-	var answerMessage = fmt.Sprintf("%s had the correct answer with `%s`. There were %d wrong answer(s)", user.Mention(), message.Content, NumWrongAnswers)
-	DiscordSession.ChannelMessageSend(message.ChannelID, answerMessage)
+	var answerMessage = fmt.Sprintf("%s had the correct answer with `%s`", user.Mention(), message.Content)
+	sendMessageToActiveChannels(answerMessage)
 	var score = IncrementUserScore(user.ID)
 	var scoreMessage = fmt.Sprintf("%s now has %d point(s)!", user.Mention(), score)
-	DiscordSession.ChannelMessageSend(message.ChannelID, scoreMessage)
+	sendMessageToActiveChannels(scoreMessage)
 
-	NewQuestion(message.ChannelID)
+	purgeActiveChannels()
+	NewQuestion()
 }
 
 func setRandomQuestion() {
@@ -150,7 +164,7 @@ func cleanseAnswer(answer string) string {
 	return CleanAnswer
 }
 
-func onTimeRanOut(channelID string) {
+func onTimeRanOut() {
 	if IsQuestionActive() == false {
 		return
 	}
@@ -158,10 +172,53 @@ func onTimeRanOut(channelID string) {
 	var currQuestion = Questions[CurrentQuestionIndex]
 	CurrentQuestionIndex = -1
 
-	var answerMessage = fmt.Sprintf("Time ran out!\nThe correct answer was `%s` There were %d wrong answer(s)", currQuestion.answers[0], NumWrongAnswers)
-	DiscordSession.ChannelMessageSend(channelID, answerMessage)
+	var answerMessage = fmt.Sprintf("Time ran out!\nThe correct answer was `%s`", currQuestion.answers[0])
+	sendMessageToActiveChannels(answerMessage)
+	purgeActiveChannels()
 
-	if NumWrongAnswers > 0 {
-		NewQuestion(channelID)
+	NewQuestion()
+}
+
+func sendMessageToActiveChannels(message string) {
+	for _, channelID := range ActiveQuestionChannels {
+		DiscordSession.ChannelMessageSend(channelID, message)
+	}
+}
+
+// SetChannelActive Will register the channel to receive trivia
+func SetChannelActive(channelID string) {
+	var ChannelIndex = findActiveChannelIndex(channelID)
+	if ChannelIndex > -1 {
+		return
+	}
+
+	ActiveQuestionChannels = append(ActiveQuestionChannels, channelID)
+}
+
+// SetChannelInactive Will stop the channel from receiving trivia
+func SetChannelInactive(channelID string) {
+	var ChannelIndex = findActiveChannelIndex(channelID)
+	if ChannelIndex == -1 {
+		return
+	}
+
+	ActiveQuestionChannels = append(ActiveQuestionChannels[:ChannelIndex], ActiveQuestionChannels[ChannelIndex+1:]...)
+}
+
+func findActiveChannelIndex(channelID string) int {
+	for index, ID := range ActiveQuestionChannels {
+		if ID == channelID {
+			return index
+		}
+	}
+
+	return -1
+}
+
+func purgeActiveChannels() {
+	for _, ChannelID := range ActiveQuestionChannels {
+		if val, ok := NumAnswers[ChannelID]; ok == false || val == 0 {
+			SetChannelInactive(ChannelID)
+		}
 	}
 }
