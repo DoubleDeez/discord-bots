@@ -13,13 +13,14 @@ import (
 
 // Constants
 const (
-	Version = "v0.2.2"
+	Version = "v0.2.3"
 )
 
 // Global vars
 var (
-	Token    string
-	Channels map[string]string
+	Token          string
+	Channels       map[string]string
+	DiscordSession *discordgo.Session
 )
 
 func init() {
@@ -28,9 +29,6 @@ func init() {
 	flag.Parse()
 
 	Channels = map[string]string{}
-	InitQuestions()
-	InitScoreTracking()
-	InitCmds()
 }
 
 func main() {
@@ -39,7 +37,8 @@ func main() {
 		return
 	}
 
-	var DiscordSession, err = discordgo.New("Bot " + Token)
+	var err error
+	DiscordSession, err = discordgo.New("Bot " + Token)
 	if err != nil {
 		fmt.Printf("Error creating Discord session, %s\n", err)
 		return
@@ -72,21 +71,21 @@ func OnMessageCreate(session *discordgo.Session, message *discordgo.MessageCreat
 	}
 
 	if strings.HasPrefix(message.Content, CmdChar) {
-		var HandledCommand = HandleCommand(session, message, strings.TrimPrefix(message.Content, CmdChar), message.Author.ID)
+		var HandledCommand = HandleCommand(message, strings.TrimPrefix(message.Content, CmdChar))
 		if HandledCommand {
-			var err = session.ChannelMessageDelete(message.ChannelID, message.ID)
+			var err = DiscordSession.ChannelMessageDelete(message.ChannelID, message.ID)
 			if err != nil {
 				fmt.Printf("Could not delete command message, %s\n", err)
 			}
 		}
-	} else if IsTriviaChannel(session, message.ChannelID) && IsQuestionActive() {
-		CheckAnswer(session, message)
+	} else if IsTriviaChannel(message.ChannelID) && IsQuestionActive() {
+		CheckAnswer(message)
 	}
 }
 
 // IsTriviaChannel Returns true if the channelID is the server's select trivia channel
-func IsTriviaChannel(session *discordgo.Session, channelID string) bool {
-	var channel, err = session.Channel(channelID)
+func IsTriviaChannel(channelID string) bool {
+	var channel, err = DiscordSession.Channel(channelID)
 	if err != nil {
 		fmt.Printf("Could not find channel, %s\n", err)
 		return false

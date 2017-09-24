@@ -12,53 +12,52 @@ const (
 	CmdChar = "+"
 )
 
-// CmdFuncType Command function type
-type CmdFuncType func(*discordgo.Session, *discordgo.MessageCreate, string)
+// cmdFuncType Command function type
+type cmdFuncType func(*discordgo.MessageCreate)
 
-// CmdFuncHelpType The type stored in the CmdFuncs map to map a function and helper text to a command
-type CmdFuncHelpType struct {
-	function          CmdFuncType
+// cmdFuncHelpType The type stored in the cmdFuncs map to map a function and helper text to a command
+type cmdFuncHelpType struct {
+	function          cmdFuncType
 	help              string
 	triviaChannelOnly bool
 }
 
-// CmdFuncsType The type of the CmdFuncs map
-type CmdFuncsType map[string]CmdFuncHelpType
+// cmdFuncsType The type of the CmdFuncs map
+type cmdFuncsType map[string]cmdFuncHelpType
 
-// CmdFuncs Commands to functions map
-var CmdFuncs CmdFuncsType
+// cmdFuncs Commands to functions map
+var cmdFuncs cmdFuncsType
 
-// InitCmds Initializes the cmds map
-func InitCmds() {
-	CmdFuncs = CmdFuncsType{
-		"help":     CmdFuncHelpType{cmdHelp, "Prints this list", false},
-		"here":     CmdFuncHelpType{cmdHere, "Sets the channel for the bot to perform trivia (per server)", false},
-		"version":  CmdFuncHelpType{cmdVersion, "Outputs the current bot version", true},
-		"ranking":  CmdFuncHelpType{cmdRanking, "Displays the current score rankings", true},
-		"stats":    CmdFuncHelpType{cmdStats, "Displays stats about this bot", true},
-		"question": CmdFuncHelpType{cmdQuestion, "Triggers the bot to ask a question", true},
+func init() {
+	cmdFuncs = cmdFuncsType{
+		"help":     cmdFuncHelpType{cmdHelp, "Prints this list", false},
+		"here":     cmdFuncHelpType{cmdHere, "Sets the channel for the bot to perform trivia (per server)", false},
+		"version":  cmdFuncHelpType{cmdVersion, "Outputs the current bot version", true},
+		"ranking":  cmdFuncHelpType{cmdRanking, "Displays the current score rankings", true},
+		"stats":    cmdFuncHelpType{cmdStats, "Displays stats about this bot", true},
+		"question": cmdFuncHelpType{cmdQuestion, "Triggers the bot to ask a question", true},
 	}
 }
 
 // HandleCommand Called whenever a command is sent
-func HandleCommand(session *discordgo.Session, message *discordgo.MessageCreate, cmd string, cmder string) bool {
-	CmdFuncHelpPair, ok := CmdFuncs[cmd]
+func HandleCommand(message *discordgo.MessageCreate, cmd string) bool {
+	cmdFuncHelpPair, ok := cmdFuncs[cmd]
 	if ok {
-		if CmdFuncHelpPair.triviaChannelOnly == false || IsTriviaChannel(session, message.ChannelID) {
-			CmdFuncHelpPair.function(session, message, cmder)
+		if cmdFuncHelpPair.triviaChannelOnly == false || IsTriviaChannel(message.ChannelID) {
+			cmdFuncHelpPair.function(message)
 			return true
 		}
-	} else if IsTriviaChannel(session, message.ChannelID) {
+	} else if IsTriviaChannel(message.ChannelID) {
 		var reply = fmt.Sprintf("I don't understand the command `%s`", cmd)
-		session.ChannelMessageSend(message.ChannelID, reply)
+		DiscordSession.ChannelMessageSend(message.ChannelID, reply)
 	}
 	return false
 }
 
-func cmdHelp(session *discordgo.Session, message *discordgo.MessageCreate, cmder string) {
+func cmdHelp(message *discordgo.MessageCreate) {
 	// Build array of the keys in CmdFuncs
 	var keys []string
-	for k := range CmdFuncs {
+	for k := range cmdFuncs {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
@@ -67,33 +66,33 @@ func cmdHelp(session *discordgo.Session, message *discordgo.MessageCreate, cmder
 	var cmds = "Command notation: \n`" + CmdChar + "[command]`\n"
 	cmds += "Commands:\n```\n"
 	for _, key := range keys {
-		cmds += fmt.Sprintf("%s - %s\n", key, CmdFuncs[key].help)
+		cmds += fmt.Sprintf("%s - %s\n", key, cmdFuncs[key].help)
 	}
 	cmds += "```\n"
 	cmds += "To answer a question just type it like normal chatting.\n"
-	session.ChannelMessageSend(message.ChannelID, cmds)
+	DiscordSession.ChannelMessageSend(message.ChannelID, cmds)
 }
 
-func cmdHere(session *discordgo.Session, message *discordgo.MessageCreate, cmder string) {
-	var channel, err = session.Channel(message.ChannelID)
+func cmdHere(message *discordgo.MessageCreate) {
+	var channel, err = DiscordSession.Channel(message.ChannelID)
 	if err != nil {
 		fmt.Printf("Could not find channel, %s\n", err)
 		return
 	}
 
 	Channels[channel.GuildID] = channel.ID
-	session.ChannelMessageSend(channel.ID, "I'm here!")
+	DiscordSession.ChannelMessageSend(channel.ID, "I'm here!")
 }
 
-func cmdVersion(session *discordgo.Session, message *discordgo.MessageCreate, cmder string) {
-	session.ChannelMessageSend(message.ChannelID, "Version: "+Version)
+func cmdVersion(message *discordgo.MessageCreate) {
+	DiscordSession.ChannelMessageSend(message.ChannelID, "Version: "+Version)
 }
 
-func cmdRanking(session *discordgo.Session, message *discordgo.MessageCreate, cmder string) {
+func cmdRanking(message *discordgo.MessageCreate) {
 	var scoreList = make(ScoreList, len(Scores))
 	var i = 0
 	for k, v := range Scores {
-		var user, err = session.User(k)
+		var user, err = DiscordSession.User(k)
 		if err != nil {
 			fmt.Printf("Failed to get user: %s", err)
 			continue
@@ -108,17 +107,17 @@ func cmdRanking(session *discordgo.Session, message *discordgo.MessageCreate, cm
 		rankings += fmt.Sprintf("%s \t\t\t %d\n", scoreList[idx].name, scoreList[idx].score)
 	}
 	rankings += "```"
-	session.ChannelMessageSend(message.ChannelID, rankings)
+	DiscordSession.ChannelMessageSend(message.ChannelID, rankings)
 }
 
-func cmdStats(session *discordgo.Session, message *discordgo.MessageCreate, cmder string) {
+func cmdStats(message *discordgo.MessageCreate) {
 	var Stats = "Stats:\n```\n"
 	Stats += fmt.Sprintf("Number of Valid Questions: %d\n", NumQuestions)
 	Stats += fmt.Sprintf("Number of Invalid Questions: %d\n", NumInvalidQuestions)
 	Stats += "```"
-	session.ChannelMessageSend(message.ChannelID, Stats)
+	DiscordSession.ChannelMessageSend(message.ChannelID, Stats)
 }
 
-func cmdQuestion(session *discordgo.Session, message *discordgo.MessageCreate, cmder string) {
-	NewQuestion(session, message.ChannelID)
+func cmdQuestion(message *discordgo.MessageCreate) {
+	NewQuestion(message.ChannelID)
 }

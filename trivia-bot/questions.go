@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/rand"
+	"regexp"
 	"strings"
 	"time"
-	"unicode"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -19,12 +19,13 @@ const (
 
 // Global vars
 var (
-	NumQuestions         int
-	NumInvalidQuestions  int
-	CurrentQuestionIndex int
-	Questions            []Question
-	QuestionTimer        *time.Timer
-	NumWrongAnswers      int
+	WordsToStripFromAnswer = [...]string{"the ", "a "}
+	NumQuestions           int
+	NumInvalidQuestions    int
+	CurrentQuestionIndex   int
+	Questions              []Question
+	QuestionTimer          *time.Timer
+	NumWrongAnswers        int
 )
 
 // Question holds the question and answers
@@ -33,8 +34,7 @@ type Question struct {
 	answers  []string
 }
 
-// InitQuestions Initializes the questions
-func InitQuestions() {
+func init() {
 	CurrentQuestionIndex = -1
 	var QuestionFileData, err = ioutil.ReadFile(QuestionsFilePath)
 	if err != nil {
@@ -72,38 +72,38 @@ func IsQuestionActive() bool {
 }
 
 // MessageQuestion messages the active question if there is one
-func MessageQuestion(session *discordgo.Session, channelID string) {
+func MessageQuestion(channelID string) {
 	var currQuestion = Questions[CurrentQuestionIndex]
 	var QuestionMessage = fmt.Sprintf("The question is: \n%s", currQuestion.question)
-	session.ChannelMessageSend(channelID, QuestionMessage)
+	DiscordSession.ChannelMessageSend(channelID, QuestionMessage)
 }
 
 // NewQuestion Starts a new question
-func NewQuestion(session *discordgo.Session, channelID string) {
+func NewQuestion(channelID string) {
 	if IsQuestionActive() == false {
 		NumWrongAnswers = 0
 		setRandomQuestion()
 		var NewQuestionMessage = fmt.Sprintf("A new question, you have %d seconds to answer it!", TimeToAnswer)
-		session.ChannelMessageSend(channelID, NewQuestionMessage)
+		DiscordSession.ChannelMessageSend(channelID, NewQuestionMessage)
 		QuestionTimer = time.NewTimer(time.Second * TimeToAnswer)
-		go func(session *discordgo.Session, channelID string) {
+		go func(channelID string) {
 			<-QuestionTimer.C
-			onTimeRanOut(session, channelID)
-		}(session, channelID)
+			onTimeRanOut(channelID)
+		}(channelID)
 	}
 
-	MessageQuestion(session, channelID)
+	MessageQuestion(channelID)
 }
 
 // CheckAnswer Checks if the input is the correct answer
-func CheckAnswer(session *discordgo.Session, message *discordgo.MessageCreate) {
+func CheckAnswer(message *discordgo.MessageCreate) {
 	if IsQuestionActive() {
 		var currQuestion = Questions[CurrentQuestionIndex]
-		var Input = strings.ToLower(stripWhiteSpace(message.Content))
+		var Input = cleanseAnswer(message.Content)
 		for _, ans := range currQuestion.answers {
-			var Answer = strings.ToLower(stripWhiteSpace(ans))
+			var Answer = cleanseAnswer(ans)
 			if Answer == Input {
-				correctAnswer(session, message)
+				correctAnswer(message)
 				return
 			}
 		}
@@ -111,17 +111,17 @@ func CheckAnswer(session *discordgo.Session, message *discordgo.MessageCreate) {
 	}
 }
 
-func correctAnswer(session *discordgo.Session, message *discordgo.MessageCreate) {
+func correctAnswer(message *discordgo.MessageCreate) {
 	CurrentQuestionIndex = -1
 	QuestionTimer.Stop()
 	var user = message.Author
 	var answerMessage = fmt.Sprintf("%s had the correct answer with `%s`. There were %d wrong answer(s)", user.Mention(), message.Content, NumWrongAnswers)
-	session.ChannelMessageSend(message.ChannelID, answerMessage)
+	DiscordSession.ChannelMessageSend(message.ChannelID, answerMessage)
 	var score = IncrementUserScore(user.ID)
 	var scoreMessage = fmt.Sprintf("%s now has %d point(s)!", user.Mention(), score)
-	session.ChannelMessageSend(message.ChannelID, scoreMessage)
+	DiscordSession.ChannelMessageSend(message.ChannelID, scoreMessage)
 
-	NewQuestion(session, message.ChannelID)
+	NewQuestion(message.ChannelID)
 }
 
 func setRandomQuestion() {
@@ -129,16 +129,27 @@ func setRandomQuestion() {
 	CurrentQuestionIndex = rand.Intn(NumQuestions - 1)
 }
 
-func stripWhiteSpace(str string) string {
-	return strings.Map(func(r rune) rune {
-		if unicode.IsSpace(r) {
-			return -1
-		}
-		return r
-	}, str)
+func cleanseAnswer(answer string) string {
+	// Case insensitive
+	var CleanAnswer = strings.ToLower(answer)
+
+	// Remove small words
+	for _, word := range WordsToStripFromAnswer {
+		CleanAnswer = strings.Replace(CleanAnswer, word, "", -1)
+	}
+
+	// Strip out whitespace/punctuation
+	var regex, err = regexp.Compile("[^a-zA-Z0-9]+")
+	if err != nil {
+		fmt.Printf("Failed to cleanse answer: %s\n", err)
+		return CleanAnswer
+	}
+
+	CleanAnswer = regex.ReplaceAllString(CleanAnswer, "")
+	return CleanAnswer
 }
 
-func onTimeRanOut(session *discordgo.Session, channelID string) {
+func onTimeRanOut(channelID string) {
 	if IsQuestionActive() == false {
 		return
 	}
@@ -147,9 +158,9 @@ func onTimeRanOut(session *discordgo.Session, channelID string) {
 	CurrentQuestionIndex = -1
 
 	var answerMessage = fmt.Sprintf("Time ran out!\nThe correct answer was `%s` There were %d wrong answer(s)", currQuestion.answers[0], NumWrongAnswers)
-	session.ChannelMessageSend(channelID, answerMessage)
+	DiscordSession.ChannelMessageSend(channelID, answerMessage)
 
 	if NumWrongAnswers > 0 {
-		NewQuestion(session, channelID)
+		NewQuestion(channelID)
 	}
 }

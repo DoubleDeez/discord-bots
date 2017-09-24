@@ -18,8 +18,7 @@ func (s ScoreList) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 // ScoreList List of user's score
 type ScoreList []UserScore
 
-// InitScoreTracking Initializes score tracking
-func InitScoreTracking() {
+func init() {
 	Scores = map[string]int{}
 }
 
