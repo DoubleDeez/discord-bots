@@ -1,12 +1,14 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/robertkrimen/otto"
@@ -14,13 +16,15 @@ import (
 
 // Constants
 const (
-	Version = "v0.0.1"
+	Version        = "v0.0.1"
+	MaxRunningTime = 5
 )
 
 // Global vars
 var (
 	Token          string
 	DiscordSession *discordgo.Session
+	errRunningTime = errors.New("Stahp")
 )
 
 func init() {
@@ -75,6 +79,21 @@ func OnMessageCreate(session *discordgo.Session, message *discordgo.MessageCreat
 	var messageLength = len(message.Content)
 	var code = message.Content[5 : messageLength-3]
 	var JSInterp = otto.New()
+
+	JSInterp.Interrupt = make(chan func(), 1)
+
+	defer func() {
+		if err := recover(); err != nil {
+			DiscordSession.ChannelMessageSend(message.ChannelID, "Execution halted")
+		}
+	}()
+
+	go func() {
+		time.Sleep(MaxRunningTime * time.Second)
+		JSInterp.Interrupt <- func() {
+			panic(errRunningTime)
+		}
+	}()
 
 	JSInterp.Set("print", func(call otto.FunctionCall) otto.Value {
 		logString := call.Argument(0).String()
