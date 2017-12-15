@@ -135,6 +135,8 @@ func correctAnswer(message *discordgo.MessageCreate) {
 	var scoreMessage = fmt.Sprintf("%s now has %d point(s)!", user.Mention(), score)
 	sendMessageToActiveChannels(scoreMessage)
 
+	DiscordSession.MessageReactionAdd(message.ChannelID, message.ID, "👌")
+
 	purgeActiveChannels()
 	NewQuestion()
 }
